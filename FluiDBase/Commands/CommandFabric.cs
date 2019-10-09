@@ -13,18 +13,18 @@ namespace FluiDBase
         public CommandFabric(IEnumerable<ICommand> commands)
         {
             Commands.AddRange(commands);
-            Test();
+            Validate();
         }
 
 
         public CommandFabric(params ICommand[] commands)
         {
             Commands.AddRange(commands);
-            Test();
+            Validate();
         }
 
 
-        void Test()
+        void Validate()
         {
             IEnumerable<IGrouping<string, ICommand>> g = this.Commands.GroupBy(c => c.Name, nameComparer);
             IGrouping<string, ICommand> duplicated = g.FirstOrDefault(x => x.Count() > 1);
@@ -38,6 +38,5 @@ namespace FluiDBase
             ICommand command = this.Commands.FirstOrDefault(c => nameComparer.Equals(c.Name, args.Command));
             return command;
         }
-
     }
 }

@@ -8,8 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CmdArgs" Version="1.0.1" />
+    <PackageReference Include="CmdArgs" Version="1.0.2" />
     <PackageReference Include="NLog" Version="4.6.7" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.6.0" />
+    <PackageReference Include="UTF.Unknown" Version="2.1.0" />
   </ItemGroup>
 
 </Project>

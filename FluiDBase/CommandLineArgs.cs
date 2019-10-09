@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using CmdArgs;
 
 namespace FluiDBase
 {
-    public class CommandLineArgs
+    public class CommandLineArgs : ICheckAndPrepare<CommandLineArgs>
     {
         [ValuedArgument("logLevel", Description = "Used if --verbose option is provided.", AllowedValues = new[] { "Trace", "Debug", "Info", "Warn", "Error" }, 
             DefaultValue = "Warn", UseDefWhenNoArg = true)]
@@ -38,5 +39,16 @@ namespace FluiDBase
         /// It is from AdditionalArguments[0]
         /// </summary>
         public string Command;
+
+
+        public void CheckAndPrepare(Res<CommandLineArgs> parsed)
+        {
+            if (parsed.AdditionalArguments.Count == 0)
+                throw new CmdException("Provide command name!");
+            if (parsed.AdditionalArguments.Count > 1)
+                throw new CmdException("Unsupported arguments: " + parsed.AdditionalArguments.Skip(1).Select(x => $"[{x}]"));
+
+            Command = parsed.AdditionalArguments[0];
+        }
     }
 }
