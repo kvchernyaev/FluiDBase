@@ -15,6 +15,7 @@ namespace FluiDBase
 
         [ValuedArgument("labels")] public string Labels;
         [ValuedArgument("contexts")] public string[] Contexts;
+        [SwitchArgument("excludeEmptyContext")] public bool ExcludeEmptyContext;
 
 
         [FileArgument("defaultsFile", MustExists = true)]

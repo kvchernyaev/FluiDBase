@@ -7,26 +7,31 @@ using System.Text.RegularExpressions;
 
 namespace FluiDBase.Gather
 {
-public    class SqlGatherer : IGatherer
+    public class SqlGatherer : IGatherer
     {
-
         static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
+        readonly Filter _filter;
+        ArgsParser _sqlHeaderLineParser = new ArgsParser(':');
 
 
-        public SqlGatherer()
+        public SqlGatherer(Filter filter)
         {
+            _filter = filter;
         }
 
 
 
         public bool DoesMatch(string fileType, string fileContents)
         {
-            return fileType.Equals(".sql", StringComparison.InvariantCultureIgnoreCase) &&
+            return fileType.Equals(SqlFileType, StringComparison.InvariantCultureIgnoreCase) &&
                 Regex.IsMatch(fileContents, @"^\s*--\s*fluidbase", RegexOptions.IgnoreCase);
         }
 
 
+        const string SqlFileType = ".sql";
+        static readonly string[] _PossibleFileTypes = new[] { SqlFileType };
+        public string[] PossibleFileTypes => _PossibleFileTypes;
 
 
         /// <exception cref="ProcessException"></exception>
@@ -48,12 +53,11 @@ public    class SqlGatherer : IGatherer
                 string author;
                 string id;
                 string runAlwaysString = "false", runOnChangeString = "false";
-
-
+                string context = null;
+                
                 try
                 {
-                    var p = new ArgsParser(':');
-                    List<KeyValuePair<string, string>> args = p.Parse(headerLine);
+                    List<KeyValuePair<string, string>> args = _sqlHeaderLineParser.Parse(headerLine);
 
                     author = args[0].Key;
                     id = args[0].Value;
@@ -62,12 +66,14 @@ public    class SqlGatherer : IGatherer
                     {
                         if (kvp.Key == "runAlways")
                         {
-                            runAlwaysString = string.IsNullOrWhiteSpace(kvp.Value)? "false" : kvp.Value;
+                            runAlwaysString = string.IsNullOrWhiteSpace(kvp.Value) ? "false" : kvp.Value;
                         }
                         else if (kvp.Key == "runOnChange")
                         {
                             runOnChangeString = string.IsNullOrWhiteSpace(kvp.Value) ? "false" : kvp.Value;
                         }
+                        else if (kvp.Key == "context")
+                            context = kvp.Value;
                         else
                             throw new ProcessException("attribute [{0}] is not supported", kvp.Key);
                     }
@@ -84,6 +90,12 @@ public    class SqlGatherer : IGatherer
                 if (string.IsNullOrWhiteSpace(id))
                     throw new ProcessException("{0}: changeset with empty id (headerline: [{1}])", fileDescriptor.Path, headerLine);
 
+                if (_filter.Exclude(context, true))
+                {
+                    Logger.Trace("changeset [{id}] in [{file}] is EXCLUDED", id, fileDescriptor.PathFromBase);
+                    return;
+                }
+
                 try
                 {
                     var changeset = ChangeSet.CheckAndCreate(id, fileDescriptor,
@@ -92,7 +104,7 @@ public    class SqlGatherer : IGatherer
                         changesets);
 
                     changesets.Add(changeset);
-                    Logger.Trace("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
+                    Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
                 }
                 catch (ArgumentException ex)
                 {

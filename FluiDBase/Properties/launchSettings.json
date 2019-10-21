@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FluiDBase": {
+      "commandName": "Project",
+      "commandLineArgs": "--changeLogFile=c:\\Users\\Admin\\source\\repos\\db_fluidbase_example\\CityExpressDB\\#db.changelog-master_OnlyScheme.xml --loglevel=Trace wholelist"
+    }
+  }
+}

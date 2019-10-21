@@ -76,7 +76,7 @@ namespace FluiDBase
 
         private static void Process(CommandLineArgs args)
         {
-            var commandFabric = ConstructCommands();
+            var commandFabric = ConstructCommands(args);
             ICommand command = commandFabric.GetCommand(args);
             if (command == null)
                 throw new ProcessException($"Command {args.Command} is not supported");
@@ -85,7 +85,7 @@ namespace FluiDBase
         }
 
 
-        static CommandFabric ConstructCommands()
+        static CommandFabric ConstructCommands(CommandLineArgs args)
         {
             // todo вынести сбор и создание команд - чтобы плагинами можно было расширять
 
@@ -93,11 +93,19 @@ namespace FluiDBase
             GathererFabric gathererFabric = new GathererFabric();
             CommonGatherer commonGatherer = new CommonGatherer(fileReader, gathererFabric);
 
-            gathererFabric.Add(new XmlGatherer(fileReader, commonGatherer));
-            gathererFabric.Add(new SqlRawGatherer());
-            gathererFabric.Add(new SqlGatherer());
+            var filter = new Filter(args.Contexts, emptyContextAllowed: !args.ExcludeEmptyContext);
 
-            var commandFabric = new CommandFabric(new UpdateCommand(commonGatherer, fileReader), new WholeListCommand(commonGatherer, fileReader));
+            XmlGatherer xmlGatherer = new XmlGatherer(fileReader, commonGatherer, filter);
+            var gatherers = new IGatherer[] { new SqlGatherer(filter), new SqlRawGatherer(filter), xmlGatherer };
+            xmlGatherer.Init(gatherers);
+
+            gathererFabric.Add(gatherers);
+
+            var commandFabric = new CommandFabric(
+                new UpdateCommand(commonGatherer, fileReader),
+                new WholeListCommand(commonGatherer, fileReader),
+                new AllContextsCommand()
+            );
             return commandFabric;
         }
     }
