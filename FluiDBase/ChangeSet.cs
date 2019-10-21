@@ -13,6 +13,11 @@ namespace FluiDBase
         public bool RunAlways;
         public bool RunOnChange;
 
+        /// <summary>
+        /// May be a chain - if include|includeAll has [@context] attr
+        /// </summary>
+        public string[] Contexts;
+
         public ChangeSet(string id, string fileRelPath)
         {
             Id = id;
@@ -21,7 +26,7 @@ namespace FluiDBase
 
 
         /// <exception cref="ArgumentException"></exception>
-        public static ChangeSet CheckAndCreate(string id, FileDescriptor fileDescriptor, string author, 
+        public static ChangeSet ValidateAndCreate(string id, FileDescriptor fileDescriptor, string author, 
             string runAlwaysString, string runOnChangeString, List<ChangeSet> changesets)
         {
             if (string.IsNullOrWhiteSpace(id))

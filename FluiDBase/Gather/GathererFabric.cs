@@ -21,7 +21,15 @@ namespace FluiDBase
 
         public void Add(params IGatherer[] gatherers) => Gatherers.AddRange(gatherers);
 
-        
-        public IGatherer GetGatherer(string fileType, string fileContents) => Gatherers.FirstOrDefault(g => g.DoesMatch(fileType, fileContents));
+
+        public void Replace(params IGatherer[] gatherers)
+        {
+            Gatherers.Clear();
+            Gatherers.AddRange(gatherers);
+        }
+
+
+        public IGatherer GetGatherer(string fileType, string fileContents) 
+            => Gatherers.FirstOrDefault(g => g.DoesMatch(fileType, fileContents));
     }
 }

@@ -6,7 +6,8 @@ namespace FluiDBase
 {
     public interface ICommand
     {
-        void Execute(CommandLineArgs args);
         string Name { get; }
+        Filter CreateFilter(string[] allowedContexts, bool emptyContextAllowed);
+        void Execute(CommandLineArgs args);
     }
 }

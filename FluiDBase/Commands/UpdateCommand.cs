@@ -27,6 +27,12 @@ namespace FluiDBase
         }
 
 
+        public Filter CreateFilter(string[] allowedContexts, bool emptyContextAllowed)
+        {
+            return new Filter(allowedContexts, emptyContextAllowed);
+        }
+
+
         public void Execute(CommandLineArgs args)
         {
             FileDescriptor fileDescriptorFirst = new FileDescriptor(args.ChangeLogFile.FullName, _fileReader);

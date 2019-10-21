@@ -32,18 +32,20 @@ namespace FluiDBase.Gather
 
 
         /// <exception cref="ProcessException"></exception>
-        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets)
+        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents)
         {
             if (_filter.Exclude(context: null, useForEmpty: true))
                 return;
 
             try
             {
-                var changeset = ChangeSet.CheckAndCreate(
+                var changeset = ChangeSet.ValidateAndCreate(
                     id: fileDescriptor.PathFromParent,
                     fileDescriptor: fileDescriptor.Parent,
                     author: "",
                     "false", "false", changesets);
+                changeset.Contexts = contextsFromParents;
+
                 changesets.Add(changeset);
                 Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
             }

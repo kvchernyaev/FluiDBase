@@ -7,8 +7,8 @@ namespace FluiDBase
 {
     public class Filter
     {
-        readonly string[] _allowedContexts;
-        readonly bool _emptyContextAllowed;
+        protected readonly string[] _allowedContexts;
+        protected readonly bool _emptyContextAllowed;
 
 
         public Filter(string[] allowedContexts, bool emptyContextAllowed)
@@ -30,7 +30,7 @@ namespace FluiDBase
         }
 
 
-        bool ExcludeByContext(string context, bool useForEmpty)
+        protected virtual bool ExcludeByContext(string context, bool useForEmpty)
         {
             List<string> testingContext = context?.Split(',')?.Select(x => x.Trim())?.Where(x => !string.IsNullOrWhiteSpace(x))?.ToList() ?? new List<string>();
 

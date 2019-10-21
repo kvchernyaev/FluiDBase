@@ -30,6 +30,9 @@ namespace FluiDBase
 
                 Logger.Trace("Command {command} for file [{filepath}]", args.Command, args.ChangeLogFile.FullName);
 
+                Construct(args);
+                ConstructCommands(args);
+
                 Process(args);
             }
             catch (CmdException ex)
@@ -76,37 +79,56 @@ namespace FluiDBase
 
         private static void Process(CommandLineArgs args)
         {
-            var commandFabric = ConstructCommands(args);
-            ICommand command = commandFabric.GetCommand(args);
+            ICommand command = _commandFabric.GetCommand(args);
             if (command == null)
                 throw new ProcessException($"Command {args.Command} is not supported");
+
+            IGatherer[] gatherers = ConstuctGatherers(_fileReader, _commonGatherer, 
+                command.CreateFilter(args.Contexts, emptyContextAllowed: !args.ExcludeEmptyContext));
+            _gathererFabric.Replace(gatherers);
 
             command.Execute(args);
         }
 
 
-        static CommandFabric ConstructCommands(CommandLineArgs args)
+        static FileReader _fileReader;
+        static GathererFabric _gathererFabric;
+        static CommonGatherer _commonGatherer;
+        static CommandFabric _commandFabric;
+
+
+        static void Construct(CommandLineArgs args)
+        {
+            _fileReader = new FileReader();
+            _gathererFabric = new GathererFabric();
+            _commonGatherer = new CommonGatherer(_fileReader, _gathererFabric);
+        }
+
+
+        static void ConstructCommands(CommandLineArgs args)
         {
             // todo вынести сбор и создание команд - чтобы плагинами можно было расширять
 
-            FileReader fileReader = new FileReader();
-            GathererFabric gathererFabric = new GathererFabric();
-            CommonGatherer commonGatherer = new CommonGatherer(fileReader, gathererFabric);
+            _commandFabric = new CommandFabric(
+                new UpdateCommand(_commonGatherer, _fileReader),
+                new WholeListCommand(_commonGatherer, _fileReader),
+                new AllContextsCommand(_commonGatherer, _fileReader)
+            );
+        }
 
-            var filter = new Filter(args.Contexts, emptyContextAllowed: !args.ExcludeEmptyContext);
 
+        static IGatherer[] ConstuctGatherers(FileReader fileReader, CommonGatherer commonGatherer, Filter filter)
+        {
             XmlGatherer xmlGatherer = new XmlGatherer(fileReader, commonGatherer, filter);
-            var gatherers = new IGatherer[] { new SqlGatherer(filter), new SqlRawGatherer(filter), xmlGatherer };
+            var gatherers = new IGatherer[]
+            {
+                new SqlGatherer(filter),
+                new SqlRawGatherer(filter),
+                xmlGatherer,
+            };
             xmlGatherer.Init(gatherers);
 
-            gathererFabric.Add(gatherers);
-
-            var commandFabric = new CommandFabric(
-                new UpdateCommand(commonGatherer, fileReader),
-                new WholeListCommand(commonGatherer, fileReader),
-                new AllContextsCommand()
-            );
-            return commandFabric;
+            return gatherers;
         }
     }
 }

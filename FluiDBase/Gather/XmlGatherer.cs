@@ -41,7 +41,7 @@ namespace FluiDBase.Gather
 
 
         /// <exception cref="ProcessException"></exception>
-        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets)
+        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents)
         {
             if (_defaultFilesPattern == null)
                 throw new Exception(nameof(XmlGatherer) + " is not initialized");
@@ -50,13 +50,14 @@ namespace FluiDBase.Gather
 
             foreach (XElement elem in xmlDoc.Root.Elements())
             {
-                string context = AttrVal(elem, "context");
+                string context = AttrVal(elem, "context").TrimOrNullIfEmpty();
+                string[] contexts = contextsFromParents.Concat(context);
 
                 // endpoint - so filter it now
                 if (IsTag(elem, "changeSet"))
                 {
                     if (!_filter.Exclude(context, useForEmpty: true))
-                        ProcessChangeSetTag(fileDescriptor, changesets, elem);
+                        ProcessChangeSetTag(fileDescriptor, changesets, elem, contexts);
                 }
                 else if (IsTag(elem, "property"))
                 {
@@ -68,29 +69,30 @@ namespace FluiDBase.Gather
                 else if (IsTag(elem, "include"))
                 {
                     if (!_filter.Exclude(context, useForEmpty: false))
-                        ProcessIncludeTag(elem, fileDescriptor, properties, changesets);
+                        ProcessIncludeTag(elem, fileDescriptor, properties, changesets, contexts);
                 }
                 else if (IsTag(elem, "includeAll"))
                 {
                     if (!_filter.Exclude(context, useForEmpty: false))
-                        ProcessIncludeAllTag(elem, fileDescriptor, properties, changesets);
+                        ProcessIncludeAllTag(elem, fileDescriptor, properties, changesets, contexts);
                 }
                 else
                     throw new ProcessException($"{fileDescriptor.Path}: tag {Name(elem)} is not supported");
             }
         }
-
+               
 
         #region process tag
-        void ProcessChangeSetTag(FileDescriptor fileDescriptor, List<ChangeSet> changesets, XElement elem)
+        void ProcessChangeSetTag(FileDescriptor fileDescriptor, List<ChangeSet> changesets, XElement elem, string[] contexts)
         {
             //  failOnError
             try
             {
-                var changeset = ChangeSet.CheckAndCreate(AttrVal(elem, "id"), fileDescriptor,
+                var changeset = ChangeSet.ValidateAndCreate(AttrVal(elem, "id"), fileDescriptor,
                     AttrVal(elem, "author"),
                     AttrVal(elem, "runAlways"), AttrVal(elem, "runOnChange"),
                     changesets);
+                changeset.Contexts = contexts;
 
                 changesets.Add(changeset);
                 Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
@@ -121,16 +123,16 @@ namespace FluiDBase.Gather
         }
 
 
-        void ProcessIncludeTag(XElement elem, FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets)
+        void ProcessIncludeTag(XElement elem, FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets, string[] contexts)
         {
             string childFileAbsPath = GetCombinedPathExistent(elem, "file", fileDescriptor, isDir: false);
 
             FileDescriptor childFileDescriptor = new FileDescriptor(childFileAbsPath, fileDescriptor);
-            _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets);
+            _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts);
         }
 
 
-        void ProcessIncludeAllTag(XElement elem, FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets)
+        void ProcessIncludeAllTag(XElement elem, FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets, string[] contexts)
         {
             string childDirAbsPath = GetCombinedPathExistent(elem, "dir", fileDescriptor, isDir: true);
 
@@ -141,7 +143,7 @@ namespace FluiDBase.Gather
             foreach (FileDescriptor childFileDescriptor in childFileAbsPaths
                 .Select(childFileAbsPath => new FileDescriptor(childFileAbsPath, fileDescriptor))
                 )
-                _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets);
+                _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts);
         }
         #endregion
 
