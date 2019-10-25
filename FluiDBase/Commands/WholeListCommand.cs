@@ -47,9 +47,9 @@ namespace FluiDBase.Commands
             string addon = string.Join(", ", new[] {
                     c.RunAlways ? "runAlways" : null,
                     c.RunOnChange ? "runOnChange" : null,
-                    c.Contexts == null || c.Contexts.Length == 0 ? null : string.Join(" & ", c.Contexts),
-            }
-            .Where(x => x != null));
+                    c.Contexts == null || c.Contexts.Length == 0 ? null : ("contexts: " + string.Join(" & ", c.Contexts)),
+                }
+                .Where(x => x != null));
             return $"[{c.FileRelPath}] : [{c.Id}] {(string.IsNullOrWhiteSpace(addon) ? "" : $"({addon})")}";
         }
     }

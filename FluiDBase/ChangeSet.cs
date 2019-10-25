@@ -7,17 +7,22 @@ namespace FluiDBase
 {
     public class ChangeSet
     {
-        public string Id;
-        public string FileRelPath;
+        public string Id { get; private set; }
+        public string FileRelPath { get; private set; }
 
-        public string Author;
-        public bool RunAlways;
-        public bool RunOnChange;
+        public string Author { get; private set; }
+        public bool RunAlways { get; private set; }
+        public bool RunOnChange { get; private set; }
 
         /// <summary>
         /// May be a chain - if include|includeAll has [@context] attr
         /// </summary>
-        public string[] Contexts;
+        public string[] Contexts { get; set; }
+
+
+        public string BodyOriginal { get; private set; }
+        public string Body { get; private set; }
+
 
         public ChangeSet(string id, string fileRelPath)
         {
@@ -67,6 +72,22 @@ namespace FluiDBase
         }
 
 
+        public void SetBody(string body, IEnumerable<KeyValuePair<string, string>> properties)
+        {
+            BodyOriginal = body;
+            Body = ApplyProperties(BodyOriginal, properties);
+        }
+
+
+        string ApplyProperties(string body, IEnumerable<KeyValuePair<string, string>> properties)
+        {
+            if (properties == null) return body;
+            foreach (KeyValuePair<string, string> prop in properties)
+                body = body.Replace("${" + prop.Key + "}", prop.Value);
+            return body;
+        }
+
+
         static readonly string[] allowedArgs = new[] { "runAlways", "runOnChange", "context", "id", "author" };
         
 
@@ -76,7 +97,7 @@ namespace FluiDBase
             try
             {
                 string s = TryGet(d, name);
-                T rv = Parse(s, defaultIfNull);
+                T rv = Convert(s, defaultIfNull);
                 return rv;
             }
             catch (ArgumentException ex)
@@ -91,13 +112,13 @@ namespace FluiDBase
 
 
         /// <exception cref="ArgumentException">"value ({s}) is wrong"</exception>
-        static T Parse<T>(string s, T defaultIfNull)
+        static T Convert<T>(string s, T defaultIfNull)
         {
             if (s == null)
                 return defaultIfNull;
             try
             {
-                T rv = (T)Convert.ChangeType(s, typeof(T));
+                T rv = (T)System.Convert.ChangeType(s, typeof(T));
                 return rv;
             }
             catch (InvalidCastException)

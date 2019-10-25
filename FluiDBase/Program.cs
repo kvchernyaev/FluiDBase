@@ -112,6 +112,7 @@ namespace FluiDBase
             _commandFabric = new CommandFabric(
                 new UpdateCommand(_commonGatherer, _fileReader),
                 new WholeListCommand(_commonGatherer, _fileReader),
+                new WholeListSqlCommand(_commonGatherer, _fileReader),
                 new AllContextsCommand(_commonGatherer, _fileReader)
             );
         }

@@ -35,7 +35,7 @@ namespace FluiDBase.Gather
 
 
         /// <exception cref="ProcessException"></exception>
-        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> argsFromParent)
+        public void GatherFromFile(string fileContents, IDictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> argsFromParent)
         {
             if (!Regex.IsMatch(fileContents, @"^\s*--\s*fluidbase", RegexOptions.IgnoreCase))
                 throw new Exception($"{nameof(SqlGatherer)} - file without [-- fluidbase] prefix"); // must not be
@@ -66,17 +66,18 @@ namespace FluiDBase.Gather
 
                     if (_filter.Exclude(context, useForEmpty: true))
                     {
-                        Logger.Trace("changeset [{id}] in [{file}] is EXCLUDED", id, fileDescriptor.PathFromBase);
+                        Logger.Trace("changeset [{id}] in [{file}] is EXCLUDED by context", id, fileDescriptor.PathFromBase);
                         continue;
                     }
 
                     var changeset = ChangeSet.ValidateAndCreate(id, fileDescriptor,
                         author,
                         argsDict,
-                        changesets);
+                        changesets
+                    );
                     changeset.Contexts = contextsFromParents.Concat(context);
 
-                    // todo fileContents: use properties, check preconditions, calc hashsum
+                    changeset.SetBody(body, properties);
 
                     changesets.Add(changeset);
                     Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);

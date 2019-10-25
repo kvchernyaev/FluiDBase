@@ -10,6 +10,6 @@ namespace FluiDBase.Gather
         string[] PossibleFileTypes { get; }
 
         /// <exception cref="ProcessException"></exception>
-        void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> args);
-    }
+        void GatherFromFile(string fileContents, IDictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> args);
+   }
 }
