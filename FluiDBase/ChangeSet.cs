@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace FluiDBase
@@ -26,29 +27,35 @@ namespace FluiDBase
 
 
         /// <exception cref="ArgumentException"></exception>
-        public static ChangeSet ValidateAndCreate(string id, FileDescriptor fileDescriptor, string author, 
-            string runAlwaysString, string runOnChangeString, List<ChangeSet> changesets)
+        public static ChangeSet ValidateAndCreate(string id, FileDescriptor fileDescriptor, string author,
+            Dictionary<string, string> args,
+            List<ChangeSet> changesets)
         {
+            // validate
             if (string.IsNullOrWhiteSpace(id))
                 throw new ArgumentException("changeset with empty [@id] attribute");
             if (changesets.Exists(c => c.FileRelPath == fileDescriptor.PathFromBase && c.Id == id))
                 throw new ArgumentException($"changset [{id}] is duplicated");
             //if (string.IsNullOrWhiteSpace(author))
-            //    throw new ProcessException("{0}: changeset [{1}] with empty [@author] attribute", currentFilePath, id);
+            //    throw new ArgumentException($"changeset [{id}] with empty [@author] attribute");
 
-            bool runAlways;
-            if (runAlwaysString == null)
-                runAlways = false;
-            else if (!bool.TryParse(runAlwaysString, out runAlways))
-                throw new ArgumentException($"changeset [{id}] - wrong attribute [@runAlways] value ({runAlwaysString})");
+            string[] forbidden = args.Keys.Except(allowedArgs).ToArray();
+            if(forbidden.Length > 0)
+                throw new ArgumentException($"changset [{id}]: attribute [{string.Join(", ", forbidden)}] is not supported");
 
-            bool runOnChange;
-            if (runOnChangeString == null)
-                runOnChange = false;
-            else
-                if (!bool.TryParse(runOnChangeString, out runOnChange))
-                throw new ArgumentException($"changeset [{id}] - wrong attribute [@runOnChange] value ({runOnChangeString})");
+            // parse
+            bool runAlways, runOnChange;
+            try
+            {
+                runAlways = TryGet(args, "runAlways", defaultIfNull: false);
+                runOnChange = TryGet(args, "runOnChange", defaultIfNull: false);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"changeset [{id}]: {ex.Message}");
+            }
 
+            // create
             var changeset = new ChangeSet(id, fileDescriptor.PathFromBase)
             {
                 Author = author,
@@ -57,6 +64,54 @@ namespace FluiDBase
             };
 
             return changeset;
+        }
+
+
+        static readonly string[] allowedArgs = new[] { "runAlways", "runOnChange", "context", "id", "author" };
+        
+
+        /// <exception cref="ArgumentException">"attribute [@{name}] value ({s}) is wrong"</exception>
+        static T TryGet<T>(IDictionary<string, string> d, string name, T defaultIfNull)
+        {
+            try
+            {
+                string s = TryGet(d, name);
+                T rv = Parse(s, defaultIfNull);
+                return rv;
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"attribute [@{name}]: {ex.Message}");
+            }
+        }
+
+
+        static string TryGet(IDictionary<string, string> d, string name)
+            => d != null && d.TryGetValue(name, out string value) ? value : null;
+
+
+        /// <exception cref="ArgumentException">"value ({s}) is wrong"</exception>
+        static T Parse<T>(string s, T defaultIfNull)
+        {
+            if (s == null)
+                return defaultIfNull;
+            try
+            {
+                T rv = (T)Convert.ChangeType(s, typeof(T));
+                return rv;
+            }
+            catch (InvalidCastException)
+            {
+                throw new ArgumentException($"value ({s}) is wrong");
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException($"value ({s}) is wrong");
+            }
+            catch (OverflowException)
+            {
+                throw new ArgumentException($"value ({s}) is wrong");
+            }
         }
     }
 }

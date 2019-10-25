@@ -25,12 +25,12 @@ namespace FluiDBase
         public List<ChangeSet> ProcessFile(FileDescriptor fileDescriptor)
         {
             List<ChangeSet> changesets = new List<ChangeSet>();
-            ProcessFile(fileDescriptor, properties: new Dictionary<string, string>(), changesets, contexts: null);
+            ProcessFile(fileDescriptor, properties: new Dictionary<string, string>(), changesets, contexts: null, args: null);
             return changesets;
         }
 
 
-        public void ProcessFile(FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets, string[] contexts)
+        public void ProcessFile(FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets, string[] contexts, Dictionary<string, string> args)
         {
             string fileContents = _fileReader.ReadFile(fileDescriptor.Path);
 
@@ -38,7 +38,7 @@ namespace FluiDBase
             if(gatherer == null)
                 throw new ProcessException("file type [{0}] is not supported (file [{1}] from [{2}])", fileDescriptor.Type, fileDescriptor.Path, fileDescriptor.Parent.Path);
 
-            gatherer.GatherFromFile(fileContents, properties, fileDescriptor, changesets, contexts);
+            gatherer.GatherFromFile(fileContents, properties, fileDescriptor, changesets, contexts, args);
         }
     }
 }

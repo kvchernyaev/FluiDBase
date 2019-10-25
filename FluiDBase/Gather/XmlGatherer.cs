@@ -41,7 +41,7 @@ namespace FluiDBase.Gather
 
 
         /// <exception cref="ProcessException"></exception>
-        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents)
+        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> args)
         {
             if (_defaultFilesPattern == null)
                 throw new Exception(nameof(XmlGatherer) + " is not initialized");
@@ -88,11 +88,15 @@ namespace FluiDBase.Gather
             //  failOnError
             try
             {
+                Dictionary<string, string> args = elem.Attributes().ToDictionary(a => a.Name.LocalName, a => a.Value);
+                
                 var changeset = ChangeSet.ValidateAndCreate(AttrVal(elem, "id"), fileDescriptor,
                     AttrVal(elem, "author"),
-                    AttrVal(elem, "runAlways"), AttrVal(elem, "runOnChange"),
+                    args,
                     changesets);
                 changeset.Contexts = contexts;
+
+                // todo fileContents: use properties, check preconditions, calc hashsum
 
                 changesets.Add(changeset);
                 Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
@@ -127,14 +131,20 @@ namespace FluiDBase.Gather
         {
             string childFileAbsPath = GetCombinedPathExistent(elem, "file", fileDescriptor, isDir: false);
 
+            Dictionary<string, string> args = elem.Attributes().Where(a => a.Name.LocalName != "file")
+                .ToDictionary(a => a.Name.LocalName, a => a.Value);
+
             FileDescriptor childFileDescriptor = new FileDescriptor(childFileAbsPath, fileDescriptor);
-            _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts);
+            _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts, args);
         }
 
 
         void ProcessIncludeAllTag(XElement elem, FileDescriptor fileDescriptor, Dictionary<string, string> properties, List<ChangeSet> changesets, string[] contexts)
         {
             string childDirAbsPath = GetCombinedPathExistent(elem, "dir", fileDescriptor, isDir: true);
+
+            Dictionary<string, string> args = elem.Attributes().Where(a => a.Name.LocalName != "dir")
+                .ToDictionary(a => a.Name.LocalName, a => a.Value);
 
             string filesPattern = AttrVal(elem, "filesPattern") ?? _defaultFilesPattern;
             string[] childFileAbsPaths = _fileReader.GetFiles(childDirAbsPath, filesPattern);
@@ -143,7 +153,7 @@ namespace FluiDBase.Gather
             foreach (FileDescriptor childFileDescriptor in childFileAbsPaths
                 .Select(childFileAbsPath => new FileDescriptor(childFileAbsPath, fileDescriptor))
                 )
-                _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts);
+                _commonGatherer.ProcessFile(childFileDescriptor, new Dictionary<string, string>(properties), changesets, contexts, args);
         }
         #endregion
 

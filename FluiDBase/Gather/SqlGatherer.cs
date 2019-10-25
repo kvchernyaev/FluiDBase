@@ -35,14 +35,13 @@ namespace FluiDBase.Gather
 
 
         /// <exception cref="ProcessException"></exception>
-        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents)
+        public void GatherFromFile(string fileContents, Dictionary<string, string> properties, FileDescriptor fileDescriptor, List<ChangeSet> changesets, string[] contextsFromParents, Dictionary<string, string> argsFromParent)
         {
             if (!Regex.IsMatch(fileContents, @"^\s*--\s*fluidbase", RegexOptions.IgnoreCase))
-                throw new Exception($"{nameof(SqlGatherer)} - file without [-- fluidbase] prefix");
+                throw new Exception($"{nameof(SqlGatherer)} - file without [-- fluidbase] prefix"); // must not be
 
-            string[] changesetsString = Regex.Split(fileContents, @"^\s*--\s*changeset", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-
-            foreach (string changesetString in changesetsString.Skip(1))
+            string[] changesetStrings = SplitFileForChangesets(fileContents);
+            foreach (string changesetString in changesetStrings)
             {
                 SplitByFirstNewline(changesetString, out string headerLine, out string body);
                 headerLine = headerLine.Trim();
@@ -50,59 +49,34 @@ namespace FluiDBase.Gather
 
                 Logger.Trace("sql changeset header line: {headerline}", headerLine);
 
-                string author;
-                string id;
-                string runAlwaysString = "false", runOnChangeString = "false";
-                string context = null;
-                
                 try
                 {
-                    List<KeyValuePair<string, string>> args = _sqlHeaderLineParser.Parse(headerLine);
+                    List<KeyValuePair<string, string>> args = ParseHeader(headerLine);
+                    if (args.Count == 0)
+                        throw new ProcessException($"{fileDescriptor.Path}: empty headerline - must be at least [author:id]");
+                    string author = args[0].Key;
+                    string id = args[0].Value;
 
-                    author = args[0].Key;
-                    id = args[0].Value;
+                    if (string.IsNullOrWhiteSpace(id))
+                        throw new ProcessException($"{fileDescriptor.Path}: changeset with empty id (headerline: [{headerLine}])");
 
-                    foreach (var kvp in args.Skip(1))
+                    var argsDict = new Dictionary<string, string>(args.Skip(1)/*skip author:id*/);
+                    string context;
+                    argsDict.TryGetValue("context", out context);
+
+                    if (_filter.Exclude(context, useForEmpty: true))
                     {
-                        if (kvp.Key == "runAlways")
-                        {
-                            runAlwaysString = string.IsNullOrWhiteSpace(kvp.Value) ? "false" : kvp.Value;
-                        }
-                        else if (kvp.Key == "runOnChange")
-                        {
-                            runOnChangeString = string.IsNullOrWhiteSpace(kvp.Value) ? "false" : kvp.Value;
-                        }
-                        else if (kvp.Key == "context")
-                            context = kvp.Value;
-                        else
-                            throw new ProcessException("attribute [{0}] is not supported", kvp.Key);
+                        Logger.Trace("changeset [{id}] in [{file}] is EXCLUDED", id, fileDescriptor.PathFromBase);
+                        continue;
                     }
-                }
-                catch (ArgumentException ex)
-                {
-                    throw new ProcessException("{0}: changeset bad headerline: [{1}] - {2}", fileDescriptor.Path, headerLine, ex.Message);
-                }
-                catch (ProcessException ex)
-                {
-                    throw new ProcessException("{0}: changeset bad headerline: [{1}] - {2}", fileDescriptor.Path, headerLine, ex.Message);
-                }
 
-                if (string.IsNullOrWhiteSpace(id))
-                    throw new ProcessException("{0}: changeset with empty id (headerline: [{1}])", fileDescriptor.Path, headerLine);
-
-                if (_filter.Exclude(context, useForEmpty: true))
-                {
-                    Logger.Trace("changeset [{id}] in [{file}] is EXCLUDED", id, fileDescriptor.PathFromBase);
-                    continue;
-                }
-
-                try
-                {
                     var changeset = ChangeSet.ValidateAndCreate(id, fileDescriptor,
                         author,
-                        runAlwaysString, runOnChangeString,
+                        argsDict,
                         changesets);
                     changeset.Contexts = contextsFromParents.Concat(context);
+
+                    // todo fileContents: use properties, check preconditions, calc hashsum
 
                     changesets.Add(changeset);
                     Logger.Info("changeset [{id}] in [{file}] is added", changeset.Id, changeset.FileRelPath);
@@ -114,6 +88,27 @@ namespace FluiDBase.Gather
             }
         }
 
+
+        /// <exception cref="ArgumentException"></exception>
+        List<KeyValuePair<string, string>> ParseHeader(string headerLine)
+        {
+            try
+            {
+                return _sqlHeaderLineParser.Parse(headerLine);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException($"changeset bad headerline: [{headerLine}] - {ex.Message}");
+            }
+        }
+
+
+        static string[] SplitFileForChangesets(string fileContents)
+        {
+            return Regex.Split(fileContents, @"^\s*--\s*changeset", RegexOptions.Multiline | RegexOptions.IgnoreCase)
+                .Skip(1)
+                .ToArray();
+        }
 
 
         void SplitByFirstNewline(string s, out string first, out string second)
