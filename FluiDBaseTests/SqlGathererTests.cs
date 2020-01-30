@@ -91,6 +91,48 @@ script body!
         }
 
 
-        // 2 scripts
+
+
+        [Test]
+        public void Test_Two_Header()
+        {
+            var changesets = new List<ChangeSet>();
+            string fileContent = @"-- fluidbase
+--changeset konstantin : myid runAlways:true runOnChange:true
+
+update t set a='a'
+-- comment
+
+--changeset konstantin : myid2 runAlways:true runOnChange:true
+update t set a='b'
+        ";
+
+
+            g.GatherFromFile(fileContent, null, fd, changesets, new string[] { }, null);
+
+            Assert.AreEqual(changesets.Count, 2);
+            ChangeSet c = changesets[0];
+            Assert.AreEqual(c.Author, "konstantin");
+            Assert.AreEqual(c.Id, "myid");
+            Assert.AreEqual(c.RunAlways, true);
+            Assert.AreEqual(c.RunOnChange, true);
+            Assert.AreEqual(c.FileRelPath, fd.PathFromBase);
+            Assert.AreEqual(c.Body, @"update t set a='a'
+-- comment");
+
+            c = changesets[1];
+            Assert.AreEqual(c.Author, "konstantin");
+            Assert.AreEqual(c.Id, "myid2");
+            Assert.AreEqual(c.RunAlways, true);
+            Assert.AreEqual(c.RunOnChange, true);
+            Assert.AreEqual(c.FileRelPath, fd.PathFromBase);
+            Assert.AreEqual(c.Body, "update t set a='b'");
+        }
+
+
+        // errors - unique id
+        // use props
+
+        // comments is script
     }
 }
